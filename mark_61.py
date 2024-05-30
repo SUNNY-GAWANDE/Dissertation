@@ -87,12 +87,10 @@ x_column_descriptions = {
     'ID (Icing Days)': 'the number of times the maximum temperature (TX) was less than 0°C',
     'R95pTOT':'the accumulated rainfall (in mm) on very wet days',
     'R99pTOT':'Where an extremely wet day is defined as being greater than the 99th percentile of wet days'
-    
 }
 
 # Create Dash app
 app = dash.Dash(__name__)
-server = app.server
 
 # Define app layout
 app.layout = html.Div([
@@ -163,19 +161,20 @@ app.layout = html.Div([
             options=[{'label': 'All Years', 'value': None}] + [{'label': str(year), 'value': year} for year in sorted(df_year_location['year'].unique())],
             value=None,  # Default to 'All Years'
             style={'display': 'block'}  # Always show this dropdown
-    ),
-]),
+        ),
+    ]),
 
+    # Container for graphs
+    html.Div([
+        # Line graph
+        html.Div(dcc.Graph(id='line-plot'), style={'flex': '7', 'padding': '10px', 'height': '600px'}),
+        
+        # Map graph
+        html.Div(dcc.Graph(id='map-plot'), style={'flex': '3', 'padding': '10px', 'height': '400px'})
+    ], style={'display': 'flex', 'flex-direction': 'row', 'margin-bottom': '-170px'}),
 
-    # Line graph
-    dcc.Graph(id='line-plot'),
-    
-    
     # Description of selected x-column
-    html.Div(id='x-column-description', style={'margin-top': '20px'}),
-    
-    # Map graph
-    dcc.Graph(id='map-plot'),
+    html.Div(id='x-column-description', style={'padding': '10px', 'margin-top': '-160px'}),
 ])
 
 # Callback to show/hide month and season dropdowns based on the selected data source
@@ -191,7 +190,6 @@ def update_dropdown_visibility(data_source):
         return {'display': 'none'}, {'display': 'block'}
     else:
         return {'display': 'none'}, {'display': 'none'}
-
 
 # Callback to update line plot based on dropdown selections
 @app.callback(
@@ -245,8 +243,7 @@ def update_line_plot(data_source, station_id, selected_x, selected_month, select
     else:
         return {}
 
-#callback for map update    
-
+# Callback to update map plot based on dropdown selections
 @app.callback(
     Output('map-plot', 'figure'),
     [Input('data-source-radio', 'value'),
@@ -283,18 +280,18 @@ def update_map_plot(data_source, station_ids, selected_x, selected_month, select
                                 color=selected_x,
                                 hover_data={selected_x: True, 'station_id': True},
                                 zoom=4.5,
-                                height=300,
+                                height=400,
                                 center={"lat": 53.1424, "lon": -7.6921})
 
         fig.update_traces(marker=dict(size=12, symbol='circle'))
         fig.update_layout(mapbox_style="open-street-map")
         fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
+        fig.update_layout(coloraxis_colorbar=dict(title=''))
 
         return fig
     else:
         return go.Figure()
-    
-    
+
 # Callback to update description of selected x-column
 @app.callback(
     Output('x-column-description', 'children'),
@@ -309,14 +306,6 @@ def update_x_column_description(selected_x):
     else:
         return html.Div()
 
-
 # Run the app
 if __name__ == '__main__':
     app.run_server(port=8501)
-
-
-# In[ ]:
-
-
-
-
