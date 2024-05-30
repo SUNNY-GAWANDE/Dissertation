@@ -41,9 +41,6 @@ df_year_location = pd.read_csv('df_year_location1.csv')
 # In[6]:
 
 
-df_year_location
-
-
 # In[8]:
 
 
