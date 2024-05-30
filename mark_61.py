@@ -28,19 +28,19 @@ pd.set_option('display.max_columns', 500)
 # In[3]:
 
 
-df_month_location = pd.read_csv('https://github.com/SUNNY-GAWANDE/Dissertation/blob/main/df_month_location1.csv', encoding="latin")
+df_month_location = pd.read_csv('https://github.com/SUNNY-GAWANDE/Dissertation/blob/main/df_month_location1.csv', sep=',')
 
 
 # In[4]:
 
 
-df_season_location = pd.read_csv('https://github.com/SUNNY-GAWANDE/Dissertation/blob/main/df_season_location1.csv', encoding="latin")
+df_season_location = pd.read_csv('https://github.com/SUNNY-GAWANDE/Dissertation/blob/main/df_season_location1.csv', sep=',')
 
 
 # In[5]:
 
 
-df_year_location = pd.read_csv('https://github.com/SUNNY-GAWANDE/Dissertation/blob/main/df_year_location1.csv', encoding="latin")
+df_year_location = pd.read_csv('https://github.com/SUNNY-GAWANDE/Dissertation/blob/main/df_year_location1.csv',sep=',')
 
 
 # In[6]:
