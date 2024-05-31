@@ -88,7 +88,7 @@ x_column_descriptions = {
 
 # Create Dash app
 app = dash.Dash(__name__)
-server = app.server
+server = app.server
 
 
 # Define app layout
@@ -307,4 +307,4 @@ def update_x_column_description(selected_x):
 
 # Run the app
 if __name__ == '__main__':
-    app.run_server(port=8501)
+    app.run_server(port=8502)
