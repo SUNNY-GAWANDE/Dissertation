@@ -88,12 +88,10 @@ x_column_descriptions = {
 
 # Create Dash app
 app = dash.Dash(__name__)
-server = app.server
-
 
 # Define app layout
 app.layout = html.Div([
-    html.H1("Climate Data Visualization"),
+    html.H1("Visualising Irish Climate Extremes"),
 
     # Radio buttons for selecting data source
     html.Div([
@@ -199,7 +197,7 @@ def update_dropdown_visibility(data_source):
      Input('month-dropdown', 'value'),
      Input('season-dropdown', 'value')]
 )
-def update_line_plot(data_source, station_id, selected_x, selected_month, selected_season):
+def update_line_plot(data_source, station_ids, selected_x, selected_month, selected_season):
     if data_source == 'year':
         df = df_year_location.copy()
     elif data_source == 'season':
@@ -209,38 +207,58 @@ def update_line_plot(data_source, station_id, selected_x, selected_month, select
     else:
         df = pd.DataFrame()
 
-    if station_id:
-        df = df[df['station_id'].isin(station_id)]
+    if data_source == 'month':
+        df = df[df['month'] == selected_month]
+    elif data_source == 'season':
+        df = df[df['season'] == selected_season]
 
-    if not df.empty:
-        if data_source == 'month':
-            df_filtered = df[df['month'] == selected_month]
-        elif data_source == 'season':
-            df_filtered = df[df['season'] == selected_season]
-        else:
-            df_filtered = df
-
+    traces = []
+    
+    if not station_ids:  # No station selected, show average across all stations
         # Calculate mean for selected x column grouped by year
-        avg_values = df_filtered.groupby('year')[selected_x].mean().reset_index()
+        avg_values = df.groupby('year')[selected_x].mean().reset_index()
 
         # Create trace for line plot
         trace = go.Scatter(
             x=avg_values['year'],
             y=avg_values[selected_x],
             mode='lines+markers',
-            name=selected_x
+            name='Average'
         )
 
-        # Layout for line plot
-        layout = go.Layout(
-            title=f"{selected_x} Analysis",
-            xaxis={'title': 'Year'},
-            yaxis={'title': selected_x}
-        )
+        traces.append(trace)
+    else:  # Specific stations selected
+        for station_id in station_ids:
+            df_filtered = df[df['station_id'] == station_id]
 
-        return {'data': [trace], 'layout': layout}
-    else:
-        return {}
+            if not df_filtered.empty:
+                # Calculate mean for selected x column grouped by year
+                avg_values = df_filtered.groupby('year')[selected_x].mean().reset_index()
+
+                # Create trace for line plot
+                trace = go.Scatter(
+                    x=avg_values['year'],
+                    y=avg_values[selected_x],
+                    mode='lines+markers',
+                    name=f"Station {station_id}"
+                )
+
+                traces.append(trace)
+
+    # Layout for line plot
+    layout = go.Layout(
+        title=f"{selected_x} Analysis",
+        xaxis={'title': 'Year'},
+        yaxis={'title': selected_x},
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="center",
+            x=0.5
+        )
+    )
+    return {'data': traces, 'layout': layout}
 
 # Callback to update map plot based on dropdown selections
 @app.callback(
