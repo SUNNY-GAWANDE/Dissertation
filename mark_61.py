@@ -97,7 +97,7 @@ app.layout = html.Div([
 
     # Radio buttons for selecting data source
     html.Div([
-        html.Label("Select Data Source:"),
+        html.Label("Select:"),
         dcc.RadioItems(
             id='data-source-radio',
             options=[
