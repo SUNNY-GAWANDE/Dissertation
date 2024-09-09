@@ -3,18 +3,21 @@
 
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
 
 import dash
 from dash import dcc
+#import dash_core_components as dcc
 from dash import html
-import plotly.graph_objects as go
+#import dash_html_components as html
+import plotly.graph_objs as go
+import pandas as pd
 import plotly.express as px
-
-from dash.dependencies import Input, Output
-
+from dash.dependencies import Input, Output, State
 import io
 import base64
-
 
 # In[2]:
 
@@ -39,7 +42,11 @@ df_year_location = pd.read_csv('df_year_location1.csv')
 
 
 # In[6]:
+df_month_location.replace(0, np.nan, inplace=True)
 
+df_season_location.replace(0, np.nan, inplace=True)
+
+df_year_location.replace(0, np.nan, inplace=True)
 
 # In[8]:
 
@@ -50,7 +57,7 @@ x_columns = ['DTR (Diurnal Temperature Range)', 'FD (Frost Days)', 'PRCPTOT (Tot
              'Rx1day (Wettest day)', 'Rx5day (Wettest 5-Day Period)', 'SDII (Average Daily Rainfall Intensity)',
              'SU (Summer Days)', 'TN10p (Cold Nights)', 'TN90p (Warm Nights)', 'TNn (Coldest Night)',
              'TNx (Warmest Night)', 'TR (Tropical Nights)', 'TX10p (Cold Days)', 'TX90p (Warm Days)',
-             'TXn (Coldest Day)', 'TXx (Warmest Day)', 'n_maxdy', 'n_mindy', 'n_rain','GSL','CSDI','WSDI','ID (Icing Days)',
+             'TXn (Coldest Day)', 'TXx (Warmest Day)', 'GSL','CSDI','WSDI','ID (Icing Days)',
              'R95pTOT','R99pTOT']
 
 # Dictionary containing descriptions of x-columns
@@ -59,27 +66,24 @@ x_column_descriptions = {
     'FD (Frost Days)': 'Counting the number of days when the min temperature was less than 0°C',
     'ID (Icing Days)': 'Counting the number of times the maximum temperature was less than 0°C',
     'PRCPTOT (Total Precipitation)': 'Annual total precipitation from days ≥1 mm',
-    'R10mm (Days with ≥ 10mm rain)': 'Annual count when precipitation ≥10 mm',
-    'R20mm (Days with ≥ 20mm rain)': 'Annual count when precipitation ≥20 mm',
-    'R5mm (Days with ≥ 5mm rain)': 'Annual count when precipitation ≥5 mm',
-    'Rx1day (Wettest day)': 'Annual maximum 1-day precipitation',
-    'Rx5day (Wettest 5-Day Period)': 'Annual maximum consecutive 5-day precipitation',
+    'R10mm (Days with ≥ 10mm rain)': 'Number of times when precipitation ≥10 mm',
+    'R20mm (Days with ≥ 20mm rain)': 'Number of times when precipitation ≥20 mm',
+    'R5mm (Days with ≥ 5mm rain)': 'Number of times when precipitation ≥5 mm',
+    'Rx1day (Wettest day)': 'the maximum daily precipitation (in mm) during the period of interest ',
+    'Rx5day (Wettest 5-Day Period)': 'maximum 5-day accumulated precipitation (in. mm) during the period of interest',
     'SDII (Average Daily Rainfall Intensity)': 'Ratio of annual total precipitation to number of wet days (≥1 mm)',
     'SU (Summer Days)': 'Annual count when the max temperature >25 C',
-    'TN10p (Cold Nights)': 'xyz',
-    'TN90p (Warm Nights)': 'xyz1',
+    'TN10p (Cold Nights)': 'Percentage of days when the daily minimum temperature is below the 10th percentile of the climatological distribution for that day',
+    'TN90p (Warm Nights)': 'Percentage of days when the daily minimum temperature is above the 90th percentile of the climatological distribution for that day',
     'TNn (Coldest Night)': 'Min value of daily min temperature during period of interest',
     'TNx (Warmest Night)': 'Max value of daily min temperature during period of interest',
     'TR (Tropical Nights)': 'Counting no. of times when daily min temperature > 20 C',
-    'TX10p (Cold Days)': 'abc',
-    'TX90p (Warm Days)': 'abc1',
+    'TX10p (Cold Days)': 'Frequency of cold days',
+    'TX90p (Warm Days)': 'Frequency of warm days',
     'TXn (Coldest Day)': 'The min value of daily max temperature (TX) during the period of interest',
     'TXx (Warmest Day)': 'The maximum value of daily maximum temperature',
-    'n_maxdy': 'abcde',
-    'n_mindy': 'abcd',
-    'n_rain': 'abcde',
-    'GSL':'xyz',
-    'CSDI':'xyz1',
+    'GSL':'Annual count of days with at least 6 consecutive days when the daily minimum temperature is below the 10th percentile of days between the last spring frost and the first fall frost in a given year',
+    'CSDI':'Annual count of days with at least 6 consecutive days when the daily minimum temperature is below the 10th percentile',
     'WSDI':'The Warm Spell Duration Index (WSDI) represents the annual count of days contributing to warm spells, when the maximum temperature (TX) remains above its climatological 90th percentile.',
     'ID (Icing Days)': 'the number of times the maximum temperature (TX) was less than 0°C',
     'R95pTOT':'the accumulated rainfall (in mm) on very wet days',
@@ -89,10 +93,9 @@ x_column_descriptions = {
 # Create Dash app
 app = dash.Dash(__name__)
 
-server = app.server
-
 # Define app layout
 app.layout = html.Div([
+    dcc.Store(id='is-initial-load', data=True),
     html.H1("Visualising Irish Climate Extremes"),
 
     # Radio buttons for selecting data source
@@ -191,15 +194,18 @@ def update_dropdown_visibility(data_source):
         return {'display': 'none'}, {'display': 'none'}
 
 # Callback to update line plot based on dropdown selections
+
 @app.callback(
     Output('line-plot', 'figure'),
+    Output('is-initial-load', 'data'),
     [Input('data-source-radio', 'value'),
      Input('station-dropdown', 'value'),
      Input('x-column-dropdown', 'value'),
      Input('month-dropdown', 'value'),
-     Input('season-dropdown', 'value')]
+     Input('season-dropdown', 'value')],
+    [State('is-initial-load', 'data')]
 )
-def update_line_plot(data_source, station_ids, selected_x, selected_month, selected_season):
+def update_line_plot(data_source, station_ids, selected_x, selected_month, selected_season, is_initial_load):
     if data_source == 'year':
         df = df_year_location.copy()
     elif data_source == 'season':
@@ -216,7 +222,7 @@ def update_line_plot(data_source, station_ids, selected_x, selected_month, selec
 
     traces = []
     
-    if not station_ids:  # No station selected, show average across all stations
+    if not station_ids or (is_initial_load and selected_x == 'DTR (Diurnal Temperature Range)'):
         # Calculate mean for selected x column grouped by year
         avg_values = df.groupby('year')[selected_x].mean().reset_index()
 
@@ -229,7 +235,7 @@ def update_line_plot(data_source, station_ids, selected_x, selected_month, selec
         )
 
         traces.append(trace)
-    else:  # Specific stations selected
+    else:
         for station_id in station_ids:
             df_filtered = df[df['station_id'] == station_id]
 
@@ -260,8 +266,25 @@ def update_line_plot(data_source, station_ids, selected_x, selected_month, selec
             x=0.5
         )
     )
-    return {'data': traces, 'layout': layout}
 
+    # Add annotation for initial DTR graph
+    if is_initial_load and selected_x == 'DTR (Diurnal Temperature Range)':
+        layout.annotations = [
+            dict(
+                x=0.5,
+                y=1.05,
+                xref='paper',
+                yref='paper',
+                text='This DTR is Average across Ireland',
+                showarrow=False,
+                font=dict(size=16),
+                align='center',
+            )
+        ]
+
+    # Set is_initial_load to False after the first load
+    return {'data': traces, 'layout': layout}, False
+ 
 # Callback to update map plot based on dropdown selections
 @app.callback(
     Output('map-plot', 'figure'),
@@ -297,6 +320,7 @@ def update_map_plot(data_source, station_ids, selected_x, selected_month, select
                                 lon="Longitude",
                                 size_max=15,
                                 color=selected_x,
+                                color_continuous_scale=[(0, "blue"), (0.5, "lightgreen"), (1, "red")],  # Custom color scale
                                 hover_data={selected_x: True, 'station_id': True},
                                 zoom=4.5,
                                 height=400,
@@ -327,4 +351,4 @@ def update_x_column_description(selected_x):
 
 # Run the app
 if __name__ == '__main__':
-    app.run_server(port=8501)
+    app.run_server(port=8502)
